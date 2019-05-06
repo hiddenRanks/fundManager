@@ -11,13 +11,19 @@ class App {
             x.addEventListener("click", this.changeMenu.bind(this)); //bind: 묶어주다.
         });
 
+        //투자자 리스트
+        this.invList = [];
+
         this.articleList = document.querySelectorAll("article");
-        
+
         this.loadingMethod = {
             "list": this.loadingList.bind(this),
             "register": this.loadingRegister.bind(this),
             "investor": this.loadingInvestor.bind(this)
         }
+
+        //투자자들을 담는 공간
+        this.invContainer = document.querySelector(".inv-list");
 
         //펀드들을 담는 공간
         this.fundContainer = document.querySelector(".fund-list");
@@ -26,14 +32,46 @@ class App {
 
         //디버깅용 펀드 데이터
         this.fundList.push(new Fund("00001", "게임", "2019-05-10", 500000));
-        this.fundList.push(new Fund("00002", "게임", "2019-05-10", 500000));
-        this.fundList.push(new Fund("00003", "게임", "2019-05-10", 500000));
-        this.fundList.push(new Fund("00004", "게임", "2019-05-10", 500000));
+        this.fundList.push(new Fund("00002", "게임", "2019-05-10", 50000));
+        this.fundList.push(new Fund("00003", "게임", "2019-05-10", 5000));
+        this.fundList.push(new Fund("00004", "게임", "2019-05-10", 500));
         this.fundCnt += 4;
 
         this.popup = document.querySelector(".popup");
         document.querySelector("#btnClose").addEventListener("click", this.closePopup.bind(this));
         document.querySelector("#btnInvest").addEventListener("click", this.investFund.bind(this));
+
+        this.signCanvas = document.querySelector("#sign");
+        this.signCanvas.width = this.signCanvas.clientWidth;
+        this.signCanvas.height = this.signCanvas.clientHeight;
+        this.sCtx = this.signCanvas.getContext("2d");
+
+        this.beforePoint = { x: 0, y: 0 };
+        this.startDraw = false;
+        //싸인창에 마우스 클릭할 경우 작동
+        this.signCanvas.addEventListener("mousedown", (e) => {
+            this.startDraw = true;
+            this.beforePoint.x = e.offsetX;
+            this.beforePoint.y = e.offsetY;
+        });
+
+        this.signCanvas.addEventListener("mouseup", (e) => {
+            this.startDraw = false;
+        });
+
+        this.signCanvas.addEventListener("mousemove", (e) => {
+            if (!this.startDraw) return;
+
+            this.sCtx.beginPath();
+            this.sCtx.moveTo(this.beforePoint.x, this.beforePoint.y);
+            this.sCtx.lineTo(e.offsetX, e.offsetY);
+            this.sCtx.stroke();
+
+            this.beforePoint.x = e.offsetX;
+            this.beforePoint.y = e.offsetY;
+        });
+
+        this.toastContainer = document.querySelector("#toastList");
 
         this.nav[0].click();//시작과 동시에 클릭됨
     }
@@ -41,25 +79,29 @@ class App {
     investFund() {
         let fundNo = document.querySelector("#investNo").value;
         const fund = this.fundList.find(x => x.number == fundNo);
-        if(!fund) {
+        if (!fund) {
             return;
         }
 
         let money = document.querySelector("#money").value * 1;
-        if(money <= 0) {
+        if (money <= 0) {
             this.showMsg("금액을 올바르게 입력하세요");
             return;
         }
 
+        let name = document.querySelector("#name").value;
         let result = fund.invest(money);
+        let signData = this.signCanvas.toDataURL();
         this.showMsg(result.msg);
-        
-        if(result.success) {
+
+        if (result.success) {
             //성공했을시
             this.popup.querySelector("#btnClose").click();
 
             //투자자 리스트 넣기
-            
+            let inv = new Investor(fund, name, money, signData);
+            this.invList.push(inv);
+            console.log(inv);
 
             //새로 고침
             this.nav[0].click();
@@ -69,6 +111,9 @@ class App {
     openPopup(fund) {
         this.popup.querySelector("#investNo").value = fund.number;
         this.popup.querySelector("#investName").value = fund.name;
+        this.popup.querySelector("#name").value = "";
+        this.popup.querySelector("#money").value = 0;
+        this.sCtx.clearRect(0, 0, this.signCanvas.width, this.signCanvas.height);
         this.popup.classList.add("active");
     }
 
@@ -89,6 +134,11 @@ class App {
         e.target.classList.add("active");
 
         this.loadingMethod[target]();
+
+        //크기 변경
+        let inner = document.querySelector(".inner-content");
+        let h = document.querySelector("#" + target).clientHeight;
+        inner.style.height = h + 'px';
     }
 
     //펀드 등록 페이지
@@ -109,7 +159,7 @@ class App {
         let endDate = document.querySelector("#endDate").value;
         let total = document.querySelector("#total").value;
 
-        if(name == "" || endDate == "" || total == "") {
+        if (name == "" || endDate == "" || total == "") {
             this.showMsg("값이 없거나 잘못된 형식 입니다.");
             return;
         }
@@ -136,16 +186,47 @@ class App {
 
     //투자자 보는 페이지
     loadingInvestor() {
-        console.log("투자자 페이지");
+        this.invContainer.innerHTML = "";
+        this.invList.forEach(x => {
+            this.invContainer.appendChild(x.getTemplate());
+        });
     }
 
     showMsg(msg) {
-        alert(msg);
+        //alert(msg);
+        let div = document.createElement("div");
+        div.classList.add("toast");
+        div.innerHTML = `<p class="msg">${msg}</p>
+        <span class="close">&times;</span>`;
+
+        let closed = false;
+
+        let closeTimer = setTimeout(() => {
+            if(closed) return;
+            closed = true;
+            div.style.opacity = 0;
+            div.style.transform = 0.8;
+            setTimeout(() => {
+                this.toastContainer.removeChild(div);
+            }, 600);
+        }, 2500);
+
+        div.querySelector(".close").addEventListener("click", () => {
+            if(closed) return;
+            closed = true;
+            div.style.opacity = 0;
+            div.style.transform = 0.8;
+            setTimeout(() => {
+                this.toastContainer.removeChild(div);
+            }, 600);
+        });
+
+        this.toastContainer.appendChild(div);
     }
 }
 
 //html의 코드를 다 읽었을 때
-window.onload = function() {
+window.onload = function () {
     //변경될 일이 없다면 let대신 const를 써준다.
     const app = new App();
 }
