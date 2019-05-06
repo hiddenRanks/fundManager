@@ -19,7 +19,61 @@ class App {
             "investor": this.loadingInvestor.bind(this)
         }
 
+        //펀드들을 담는 공간
+        this.fundContainer = document.querySelector(".fund-list");
+
         document.querySelector("#register button").addEventListener("click", this.registerFund.bind(this));
+
+        //디버깅용 펀드 데이터
+        this.fundList.push(new Fund("00001", "게임", "2019-05-10", 500000));
+        this.fundList.push(new Fund("00002", "게임", "2019-05-10", 500000));
+        this.fundList.push(new Fund("00003", "게임", "2019-05-10", 500000));
+        this.fundList.push(new Fund("00004", "게임", "2019-05-10", 500000));
+        this.fundCnt += 4;
+
+        this.popup = document.querySelector(".popup");
+        document.querySelector("#btnClose").addEventListener("click", this.closePopup.bind(this));
+        document.querySelector("#btnInvest").addEventListener("click", this.investFund.bind(this));
+
+        this.nav[0].click();//시작과 동시에 클릭됨
+    }
+
+    investFund() {
+        let fundNo = document.querySelector("#investNo").value;
+        const fund = this.fundList.find(x => x.number == fundNo);
+        if(!fund) {
+            return;
+        }
+
+        let money = document.querySelector("#money").value * 1;
+        if(money <= 0) {
+            this.showMsg("금액을 올바르게 입력하세요");
+            return;
+        }
+
+        let result = fund.invest(money);
+        this.showMsg(result.msg);
+        
+        if(result.success) {
+            //성공했을시
+            this.popup.querySelector("#btnClose").click();
+
+            //투자자 리스트 넣기
+            
+
+            //새로 고침
+            this.nav[0].click();
+        }
+    }
+
+    openPopup(fund) {
+        this.popup.querySelector("#investNo").value = fund.number;
+        this.popup.querySelector("#investName").value = fund.name;
+        this.popup.classList.add("active");
+    }
+
+    closePopup() {
+        this.popup.classList.remove("active");
     }
 
     changeMenu(e) {
@@ -69,7 +123,15 @@ class App {
 
     //펀드 리스트 페이지
     loadingList() {
-        console.log("리스트 페이지");
+        this.fundContainer.innerHTML = "";
+        this.fundList.forEach(x => {
+            let div = x.getTemplate();
+            this.fundContainer.appendChild(div);
+            div.querySelector("button").addEventListener("click", () => {
+                this.openPopup(x);
+            });
+            x.drawCircle();
+        });
     }
 
     //투자자 보는 페이지
